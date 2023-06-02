@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="microrts">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/../microrts/bin/microrts.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
