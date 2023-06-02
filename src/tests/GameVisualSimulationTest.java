@@ -4,6 +4,7 @@
  */
 package tests;
 
+ import ai.RandomBiasedAI;
  import ai.abstraction.*;
  import ai.abstraction.pathfinding.BFSPathFinding;
  import ai.core.AI;
@@ -28,8 +29,8 @@ package tests;
 public class GameVisualSimulationTest {
     public static void main(String[] args) throws Exception {
         UnitTypeTable utt = new UnitTypeTable();
-//        PhysicalGameState pgs = PhysicalGameState.load("maps/16x16/basesWorkers16x16.xml", utt);
-        PhysicalGameState pgs = PhysicalGameState.load("maps/DoubleGame24x24.xml", utt);
+        PhysicalGameState pgs = PhysicalGameState.load("maps/16x16/basesWorkers16x16.xml", utt);
+//        PhysicalGameState pgs = PhysicalGameState.load("maps/DoubleGame24x24.xml", utt);
 //        PhysicalGameState pgs = MapGenerator.basesWorkers8x8Obstacle();
 
         GameState gs = new GameState(pgs, utt);
@@ -37,10 +38,11 @@ public class GameVisualSimulationTest {
         int PERIOD = 20;
         boolean gameover = false;
         
-        //AI ai1 = new WorkerRush(utt, new BFSPathFinding());
-        AI ai1 = new LightDefense(utt);
-        //AI ai2 = new RandomBiasedAI();
-        AI ai2 = new LightRush(utt);
+        AI ai1 = new WorkerRush(utt, new BFSPathFinding());
+//        AI ai1 = new LightDefense(utt);
+//        AI ai1 = new RandomBiasedAI();
+//        AI ai1 = new LightRush(utt);
+        AI ai2 = new GrabAndShakeBot(utt);
 
         JFrame w = PhysicalGameStatePanel.newVisualizer(gs,640,640,false,PhysicalGameStatePanel.COLORSCHEME_BLACK);
 //        JFrame w = PhysicalGameStatePanel.newVisualizer(gs,640,640,false,PhysicalGameStatePanel.COLORSCHEME_WHITE);
