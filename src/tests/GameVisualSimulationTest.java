@@ -6,6 +6,7 @@ package tests;
 
  import ai.RandomBiasedAI;
  import ai.abstraction.*;
+ import ai.abstraction.cRush.CRush_V2;
  import ai.abstraction.pathfinding.BFSPathFinding;
  import ai.core.AI;
  import ai.mcts.believestatemcts.BS1_NaiveMCTS;
@@ -40,10 +41,11 @@ public class GameVisualSimulationTest {
         
 //        AI ai1 = new WorkerRush(utt);
 //        AI ai1 = new WorkerRush(utt, new BFSPathFinding());
-        AI ai1 = new LightDefense(utt);
+//        AI ai1 = new LightDefense(utt);
 //        AI ai1 = new RandomBiasedAI();
 //        AI ai1 = new MonteCarlo(utt);
-//        AI ai1 = new LightRush(utt);
+        AI ai1 = new LightRush(utt);
+//        AI ai1 = new CRush_V2(utt);
         AI ai2 = new GrabAndShakeBot(utt);
 
         JFrame w = PhysicalGameStatePanel.newVisualizer(gs,640,640,false,PhysicalGameStatePanel.COLORSCHEME_BLACK);
