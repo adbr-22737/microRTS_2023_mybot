@@ -59,11 +59,12 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     static float REL_DIST_MULTIPLIER = 0.001f;
     float relativeDistanceFromBase = START_REL_DIST_FROM_BASE;
     float enemyDistance = START_ENEMY_DIST;
-    static int MAX_DIST_RESSOUCES_AWAY_FROM_BASE_TO_TRAIN_WORKERS = 6;
+    static int MAX_DIST_RESOUCES_AWAY_FROM_BASE_TO_TRAIN_WORKERS = 6;
     // TODO: use player indices to show which territory belongs to which player
     /** 0: free, > 0: occupied, < 0: reserved*/
     int[][] buildable;
 
+    // TODO: evaluate if the enemy is attacking (use territories, distances, walk-behaviour of troups, ...)
 
     public GrabAndShakeBot(UnitTypeTable a_utt) {
         this(a_utt, new AStarPathFinding());
@@ -302,7 +303,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     }
 
     public int evalRessourcesNearBase(Unit u, Player p, PhysicalGameState pgs) {
-        int maxDistFromBase = MAX_DIST_RESSOUCES_AWAY_FROM_BASE_TO_TRAIN_WORKERS;
+        int maxDistFromBase = MAX_DIST_RESOUCES_AWAY_FROM_BASE_TO_TRAIN_WORKERS;
         int n_ressources = 0;
 
         for (Unit u2: pgs.getUnits()) {
@@ -401,6 +402,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             }
         }
 
+        // TODO: change behaviour of workers to use more workers if harvesting is with a long distance and less when it is with small distance
         // harvest with all the free workers:
         List<Unit> stillFreeWorkers = new LinkedList<>();
         for (Unit u : freeWorkers) {

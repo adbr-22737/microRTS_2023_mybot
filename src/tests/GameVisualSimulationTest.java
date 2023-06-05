@@ -30,8 +30,7 @@ package tests;
 public class GameVisualSimulationTest {
     public static void main(String[] args) throws Exception {
         UnitTypeTable utt = new UnitTypeTable();
-        PhysicalGameState pgs = PhysicalGameState.load("maps/16x16/basesWorkers16x16.xml", utt);
-//        PhysicalGameState pgs = PhysicalGameState.load("maps/DoubleGame24x24.xml", utt);
+        PhysicalGameState pgs = PhysicalGameState.load("maps/BWDistantResources32x32.xml", utt);
 //        PhysicalGameState pgs = MapGenerator.basesWorkers8x8Obstacle();
 
         GameState gs = new GameState(pgs, utt);
@@ -40,11 +39,11 @@ public class GameVisualSimulationTest {
         boolean gameover = false;
         
 //        AI ai1 = new WorkerRush(utt);
-//        AI ai1 = new WorkerRush(utt, new BFSPathFinding());
+//        AI ai1 = new WorkerRushPlusPlus(utt);
 //        AI ai1 = new LightDefense(utt);
 //        AI ai1 = new RandomBiasedAI();
-//        AI ai1 = new MonteCarlo(utt);
-        AI ai1 = new LightRush(utt);
+        AI ai1 = new MonteCarlo(utt);
+//        AI ai1 = new LightRush(utt);
 //        AI ai1 = new CRush_V2(utt);
         AI ai2 = new GrabAndShakeBot(utt);
 
