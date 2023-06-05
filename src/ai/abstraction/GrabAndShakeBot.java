@@ -22,9 +22,11 @@ import java.util.Random;
  * <br>
  * <b>IDEA</b>:<br>
  * <ul>
- *     <li>use the behaviour of LightDefense, but make the distance troops are allowed to be away from the base variable</li>
- *     <li>when there is a strong front line -> train ranged</li>
+ *     <li>use the behaviour of RangedDefense, but make the distance troops are allowed to be away from the base variable</li>
+ *     <li>ranged are weak -> alternate with heavy</li>
+ *     <li>ranged should stay behind heavy & heavy should wait for at least one ranged -> for now: reset relativeDistance if army is dead</li>
  *     <li>use different troops on different grid sizes -> <i>espacially</i> on small grids probably use workers because they are faster to make</li>
+ *     <li>try to adapt units and aggressiveness according to enemy -> e.g. on WorkerRush(PlusPlus) on small grids use workers and don't build barracks</li>
  *     <li>don't stop building infrastructure</li>
  *     <ul>
  *         <li>one worker for each ressource <i>in my territory -> <b>evaluate what is mine</b></i></li>
@@ -39,15 +41,17 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     // sections
     // bots
 
-    // LightDefense
+    // RangedDefense
     Random r = new Random();
     protected UnitTypeTable utt;
     UnitType workerType;
     UnitType baseType;
     UnitType barracksType;
-    UnitType lightType;
+    UnitType rangedType;
 
     // additional
+    UnitType heavyType;
+    boolean heavyNext = true;
     UnitType ressourceType;
 
     static float START_REL_DIST_FROM_BASE = 0.15f;
@@ -55,6 +59,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     static float REL_DIST_MULTIPLIER = 0.001f;
     float relativeDistanceFromBase = START_REL_DIST_FROM_BASE;
     float enemyDistance = START_ENEMY_DIST;
+    static int MAX_DIST_RESSOUCES_AWAY_FROM_BASE_TO_TRAIN_WORKERS = 5;
 
 
     public GrabAndShakeBot(UnitTypeTable a_utt) {
@@ -70,6 +75,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     public void reset() {
         super.reset();
         // additional
+        heavyNext = true;
         relativeDistanceFromBase = START_REL_DIST_FROM_BASE;
         enemyDistance = START_ENEMY_DIST;
     }
@@ -80,8 +86,10 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         workerType = utt.getUnitType("Worker");
         baseType = utt.getUnitType("Base");
         barracksType = utt.getUnitType("Barracks");
-        lightType = utt.getUnitType("Light");
+        rangedType = utt.getUnitType("Ranged");
 
+        heavyType = utt.getUnitType("Heavy");
+        heavyNext = true;
         ressourceType = utt.getUnitType("Ressource");
         relativeDistanceFromBase = START_REL_DIST_FROM_BASE;
         enemyDistance = START_ENEMY_DIST;
@@ -142,13 +150,21 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             }
         }
 
+        int ntroups = 0;
         // behavior of melee units:
         for (Unit u : pgs.getUnits()) {
             if (u.getType().canAttack && !u.getType().canHarvest
-                    && u.getPlayer() == player
-                    && gs.getActionAssignment(u) == null) {
-                meleeUnitBehavior(u, p, pgs);
+                    && u.getPlayer() == player) {
+                ++ntroups;
+                if (gs.getActionAssignment(u) == null)
+                    meleeUnitBehavior(u, p, pgs);
             }
+        }
+
+        // reset relativeDistance if army is dead
+        if (ntroups <= 1) {
+            relativeDistanceFromBase = START_REL_DIST_FROM_BASE;
+            enemyDistance = START_ENEMY_DIST;
         }
 
         // behavior of workers:
@@ -166,9 +182,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     }
 
     public int evalRessourcesNearBase(Unit u, Player p, PhysicalGameState pgs) {
-        int averageSize = (pgs.getHeight() + pgs.getWidth())/2;
-        int maxDistFromBase = (int)(averageSize*relativeDistanceFromBase);
-
+        int maxDistFromBase = MAX_DIST_RESSOUCES_AWAY_FROM_BASE_TO_TRAIN_WORKERS;
         int n_ressources = 0;
 
         for (Unit u2: pgs.getUnitsInRectangle(
@@ -192,8 +206,13 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     }
 
     public void barracksBehavior(Unit u, Player p, PhysicalGameState pgs) {
-        if (p.getResources() >= lightType.cost) {
-            train(u, lightType);
+        if (p.getResources() >= rangedType.cost) {
+            if (heavyNext)
+                train(u, heavyType);
+            else
+                train(u, rangedType);
+
+            heavyNext = !heavyNext;
         }
     }
 
@@ -243,7 +262,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
 
         List<Integer> reservedPositions = new LinkedList<>();
         // a base can be surrounded by maximum 4 workers
-        if (nbases < 4*nworkers && !freeWorkers.isEmpty()) {
+        if (4*nbases < nworkers && !freeWorkers.isEmpty()) {
             // build a base:
             if (p.getResources() >= baseType.cost + resourcesUsed) {
                 Unit u = freeWorkers.remove(0);
