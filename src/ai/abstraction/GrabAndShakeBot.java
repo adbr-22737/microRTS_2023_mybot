@@ -202,6 +202,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
 
     public void barracksBehavior(Unit u, Player p, PhysicalGameState pgs) {
         if (p.getResources() >= rangedType.cost) {
+//            train(u, rangedType);
             if (heavyNext)
                 train(u, heavyType);
             else
@@ -234,11 +235,12 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         int averageSize = (pgs.getWidth()+pgs.getHeight())/2;
 
         // closestDistance < enemyDistance: attack attacking enemies / distToMyBase < (averageSize*relativeDistanceFromBase): walk towards enemy until you are to far away from base
-        if (closestEnemy!=null && (closestDistance < enemyDistance || distToMyBase < (averageSize*relativeDistanceFromBase))) {
+        float maxDistAway = u.getType()==heavyType ? averageSize*relativeDistanceFromBase+1 : averageSize*relativeDistanceFromBase;
+        if (closestEnemy!=null && (closestDistance < enemyDistance || distToMyBase < maxDistAway)) {
             attack(u,closestEnemy);
         }
         // returning from a battle
-        else if (distToMyBase > (averageSize*relativeDistanceFromBase)) {
+        else if (distToMyBase > maxDistAway) {
             move(u, baseX, baseY);
         }
         else
