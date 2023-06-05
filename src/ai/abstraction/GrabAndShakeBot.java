@@ -52,14 +52,13 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     // additional
     UnitType heavyType;
     boolean heavyNext = true;
-    UnitType ressourceType;
 
     static float START_REL_DIST_FROM_BASE = 0.15f;
     static float START_ENEMY_DIST = 2.0f;
     static float REL_DIST_MULTIPLIER = 0.001f;
     float relativeDistanceFromBase = START_REL_DIST_FROM_BASE;
     float enemyDistance = START_ENEMY_DIST;
-    static int MAX_DIST_RESSOUCES_AWAY_FROM_BASE_TO_TRAIN_WORKERS = 5;
+    static int MAX_DIST_RESSOUCES_AWAY_FROM_BASE_TO_TRAIN_WORKERS = 6;
 
 
     public GrabAndShakeBot(UnitTypeTable a_utt) {
@@ -90,7 +89,6 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
 
         heavyType = utt.getUnitType("Heavy");
         heavyNext = true;
-        ressourceType = utt.getUnitType("Ressource");
         relativeDistanceFromBase = START_REL_DIST_FROM_BASE;
         enemyDistance = START_ENEMY_DIST;
     }
@@ -185,14 +183,11 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         int maxDistFromBase = MAX_DIST_RESSOUCES_AWAY_FROM_BASE_TO_TRAIN_WORKERS;
         int n_ressources = 0;
 
-        for (Unit u2: pgs.getUnitsInRectangle(
-                Math.max(u.getX()-maxDistFromBase,0),
-                Math.max(u.getY()-maxDistFromBase,0),
-                Math.min(2*maxDistFromBase,pgs.getWidth()),
-                Math.min(2*maxDistFromBase, pgs.getHeight())
-        )) {
-            if (u2.getType() == ressourceType) {
-                ++n_ressources;
+        for (Unit u2: pgs.getUnits()) {
+            if (u2.getType().isResource) {
+                int dist = (Math.abs(u.getX()-u2.getX()) + Math.abs(u.getY()-u2.getY()));
+                if (dist <= maxDistFromBase)
+                    ++n_ressources;
             }
         }
 
