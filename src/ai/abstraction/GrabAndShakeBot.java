@@ -54,7 +54,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     boolean heavyNext = true;
 
     static float START_REL_DIST_FROM_BASE = 0.15f;
-    static float START_ENEMY_DIST = 2.0f;
+    static float START_ENEMY_DIST = 3.0f;
     static float REL_DIST_MULTIPLIER = 0.001f;
     float relativeDistanceFromBase = START_REL_DIST_FROM_BASE;
     float enemyDistance = START_ENEMY_DIST;
@@ -191,7 +191,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             }
         }
 
-        return n_ressources;
+        return Math.max(1, n_ressources);
     }
 
     public void baseBehavior(Unit u, Player p, PhysicalGameState pgs, int nressources, int nworkers) {
@@ -202,7 +202,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
 
     public void barracksBehavior(Unit u, Player p, PhysicalGameState pgs) {
         if (p.getResources() >= rangedType.cost) {
-//            train(u, rangedType);
+
             if (heavyNext)
                 train(u, heavyType);
             else
@@ -259,7 +259,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
 
         List<Integer> reservedPositions = new LinkedList<>();
         // a base can be surrounded by maximum 4 workers
-        if (4*nbases < nworkers && !freeWorkers.isEmpty()) {
+        if ((nbases < 2 || 4*nbases < nworkers) && !freeWorkers.isEmpty()) {
             // build a base:
             if (p.getResources() >= baseType.cost + resourcesUsed) {
                 Unit u = freeWorkers.remove(0);
@@ -268,7 +268,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             }
         }
 
-        if (nbarracks == 0) {
+        if (nbarracks == 0 || p.getResources() >= barracksType.cost + resourcesUsed + heavyType.cost + rangedType.cost) {
             // build a barracks:
             if (p.getResources() >= barracksType.cost + resourcesUsed && !freeWorkers.isEmpty()) {
                 Unit u = freeWorkers.remove(0);
