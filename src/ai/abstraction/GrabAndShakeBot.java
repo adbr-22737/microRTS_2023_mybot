@@ -25,6 +25,9 @@ import java.util.*;
  *     <li>ranged should stay behind heavy & heavy should wait for at least one ranged -> for now: reset relativeDistance if army is dead</li>
  *     <li>use different troops on different grid sizes -> <i>espacially</i> on small grids probably use workers because they are faster to make</li>
  *     <li>try to adapt units and aggressiveness according to enemy -> e.g. on WorkerRush(PlusPlus) on small grids use workers and don't build barracks</li>
+ *     <ul>
+ *         <li>this is like CRush_V2 where the bot decides if it should play rush or not depending on grid size</li>
+ *     </ul>
  *     <li>don't stop building infrastructure</li>
  *     <ul>
  *         <li>one worker for each ressource <i>in my territory -> <b>evaluate what is mine</b></i></li>
@@ -57,6 +60,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     float relativeDistanceFromBase = START_REL_DIST_FROM_BASE;
     float enemyDistance = START_ENEMY_DIST;
     static int MAX_DIST_RESSOUCES_AWAY_FROM_BASE_TO_TRAIN_WORKERS = 6;
+    // TODO: use player indices to show which territory belongs to which player
     /** 0: free, > 0: occupied, < 0: reserved*/
     int[][] buildable;
 
@@ -102,8 +106,8 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
 
     @Override
     public void preGameAnalysis(GameState gs, long milliseconds, String readWriteFolder) throws Exception {
-        // alle seperaten territorien finden -> gs.getPhysicalGameState().getAllFree()
-        // damit auch maps unterscheiden -> array als 0-1-array umwandeln und als key in datei schreiben
+        // TODO: alle seperaten territorien finden -> gs.getPhysicalGameState().getAllFree()
+        // TODO: save results of analysis
         // hinter den Key schreiben: wie viele bereiche/bots nötig, abgrenzung der bereiche (z.b. rect mit smallest x,y und biggest x,y),
         //    #Ressourcen in jedem bereich, #Startressourcen
 
@@ -139,6 +143,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             }
         }
     }
+    // TODO: overthink reservation -> do this differently or make reservations happen (when building is done -> observer that indicates that a worker has finished its work)
     void reservePosAndMarkAround(int x, int y, int w, int h) {
         for (int i = Math.max(0, x - 2); i < Math.min(x + 2, w); i++) {
             for (int j = Math.max(0, y - 2); j < Math.min(y + 2, h); j++) {
@@ -222,6 +227,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     public PlayerAction getAction(int player, GameState gs) {
         PhysicalGameState pgs = gs.getPhysicalGameState();
 
+        // TODO: don't do this everytime
 //        if (buildable == null)
         findBuildablePositions(pgs);
 
@@ -329,6 +335,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     }
 
     public void meleeUnitBehavior(Unit u, Player p, PhysicalGameState pgs) {
+        // TODO: make this better -> units as a list (like workers) -> when one is attacked, all neighbors should form a squad and attack
         Unit closestEnemy = null;
         int closestDistance = 0;
         int distToMyBase = 0;
@@ -350,12 +357,13 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         }
         int averageSize = (pgs.getWidth()+pgs.getHeight())/2;
 
+        // TODO: use distance from any building not only the base
         // closestDistance < enemyDistance: attack attacking enemies / distToMyBase < (averageSize*relativeDistanceFromBase): walk towards enemy until you are to far away from base
         float maxDistAway = u.getType()==heavyType ? averageSize*relativeDistanceFromBase+1 : averageSize*relativeDistanceFromBase;
         if (closestEnemy!=null && (closestDistance < enemyDistance || distToMyBase < maxDistAway)) {
             attack(u,closestEnemy);
         }
-        // returning from a battle
+        // TODO: returning from a battle -> isn't working
         else if (distToMyBase > maxDistAway) {
             move(u, baseX, baseY);
         }
