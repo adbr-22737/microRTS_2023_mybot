@@ -40,9 +40,10 @@ public class GameVisualSimulationTest {
         
 //        AI ai1 = new WorkerRush(utt);
 //        AI ai1 = new WorkerRush(utt, new BFSPathFinding());
-//        AI ai1 = new LightDefense(utt);
+        AI ai1 = new LightDefense(utt);
 //        AI ai1 = new RandomBiasedAI();
-        AI ai1 = new LightRush(utt);
+//        AI ai1 = new MonteCarlo(utt);
+//        AI ai1 = new LightRush(utt);
         AI ai2 = new GrabAndShakeBot(utt);
 
         JFrame w = PhysicalGameStatePanel.newVisualizer(gs,640,640,false,PhysicalGameStatePanel.COLORSCHEME_BLACK);
