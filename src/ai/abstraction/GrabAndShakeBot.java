@@ -11,11 +11,9 @@ import rts.PlayerAction;
 import rts.units.Unit;
 import rts.units.UnitType;
 import rts.units.UnitTypeTable;
+import util.Pair;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 /**
  * <p>evaluated predefined bots and realized that Defensive Strategies (LightDefense) work best except on small grids and very large ones, because then they do nothing</p>
@@ -59,6 +57,8 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     float relativeDistanceFromBase = START_REL_DIST_FROM_BASE;
     float enemyDistance = START_ENEMY_DIST;
     static int MAX_DIST_RESSOUCES_AWAY_FROM_BASE_TO_TRAIN_WORKERS = 6;
+    /** 0: free, > 0: occupied, < 0: reserved*/
+    int[][] buildable;
 
 
     public GrabAndShakeBot(UnitTypeTable a_utt) {
@@ -77,6 +77,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         heavyNext = true;
         relativeDistanceFromBase = START_REL_DIST_FROM_BASE;
         enemyDistance = START_ENEMY_DIST;
+        buildable = null;
     }
 
     public void reset(UnitTypeTable a_utt)
@@ -91,6 +92,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         heavyNext = true;
         relativeDistanceFromBase = START_REL_DIST_FROM_BASE;
         enemyDistance = START_ENEMY_DIST;
+        buildable = null;
     }
 
 
@@ -104,38 +106,152 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         // damit auch maps unterscheiden -> array als 0-1-array umwandeln und als key in datei schreiben
         // hinter den Key schreiben: wie viele bereiche/bots nötig, abgrenzung der bereiche (z.b. rect mit smallest x,y und biggest x,y),
         //    #Ressourcen in jedem bereich, #Startressourcen
+
+        // evaluate free places to build stuff
+        PhysicalGameState pgs = gs.getPhysicalGameState();
+        findBuildablePositions(pgs);
+    }
+
+    void findBuildablePositions(PhysicalGameState pgs) {
+        int w = pgs.getWidth(), h = pgs.getHeight();
+        // terrain
+        buildable = new int[w][h];
+        for (int i = 0; i < w; i++) {
+            for (int j = 0; j < h; j++) {
+                buildable[i][j] = pgs.getTerrain(i,j);
+            }
+        }
+        // units
+        for (Unit u: pgs.getUnits()) {
+            if (!u.getType().canMove) {
+                setImmoveablePosAndMarkAround(u.getX(), u.getY(), w,h);
+            }
+        }
+    }
+
+    void setImmoveablePosAndMarkAround(int x, int y, int w, int h) {
+        for (int i = Math.max(0, x - 2); i < Math.min(x + 2, w); i++) {
+            for (int j = Math.max(0, y - 2); j < Math.min(y + 2, h); j++) {
+                if (Math.abs(i - x) + Math.abs(j - y) > 2)
+                    continue;
+
+                buildable[i][j] = 1;
+            }
+        }
+    }
+    void reservePosAndMarkAround(int x, int y, int w, int h) {
+        for (int i = Math.max(0, x - 2); i < Math.min(x + 2, w); i++) {
+            for (int j = Math.max(0, y - 2); j < Math.min(y + 2, h); j++) {
+                if (Math.abs(i - x) + Math.abs(j - y) > 2)
+                    continue;
+
+                buildable[i][j] = -1;
+            }
+        }
+    }
+
+    /**
+     * reserves the found position<br>
+     * HELPER FUNCTION
+     * @param a_x x
+     * @param a_y y
+     * @return the nearest possible building position that isn't reserved yet or null if nothing found
+     */
+    Pair<Integer, Integer> useBuildablePositionAround(int a_x, int a_y) {
+        int w = buildable.length, h = buildable[0].length;
+        int x = Math.max(0, Math.min(a_x, w));
+        int y = Math.max(0, Math.min(a_y, h));
+
+        Queue<Pair<Integer, Integer>> queue = new ArrayDeque<>();
+        queue.add(new Pair<>(x,y));
+        Set<Pair<Integer, Integer>> visited = new HashSet<>();
+
+        while (!queue.isEmpty()) {
+            Pair<Integer, Integer> p = queue.poll();
+            int i = p.m_a, j = p.m_b;
+            if (buildable[i][j] == 0) {
+                // reserve
+                reservePosAndMarkAround(i,j,w,h);
+                return p;
+            }
+
+            visited.add(p);
+
+            if (i-1 >= 0) {
+                Pair<Integer,Integer> newp = new Pair<>(i-1,j);
+                if (!visited.contains(newp))
+                    queue.add(newp);
+            }
+            if (j-1 >= 0) {
+                Pair<Integer,Integer> newp = new Pair<>(i,j-1);
+                if (!visited.contains(newp))
+                    queue.add(newp);
+            }
+            if (i+1 < w) {
+                Pair<Integer,Integer> newp = new Pair<>(i+1,j);
+                if (!visited.contains(newp))
+                    queue.add(newp);
+            }
+            if (j+1 < h) {
+                Pair<Integer,Integer> newp = new Pair<>(i,j+1);
+                if (!visited.contains(newp))
+                    queue.add(newp);
+            }
+        }
+
+        return null;
+    }
+
+    @Override
+    public boolean buildIfNotAlreadyBuilding(Unit u, UnitType t, int x, int y, List<Integer> reservedPositions, Player p, PhysicalGameState pgs) {
+        AbstractAction action = getAbstractAction(u);
+        if (action instanceof Build && ((Build) action).type == t)
+            return false;
+
+        Pair<Integer, Integer> pair = useBuildablePositionAround(x,y);
+        // will be reset in next iteration anyway because buildable is evaluated every iteration
+        //setImmoveablePosAndMarkAround(pair.m_a, pair.m_b, pgs.getWidth(), pgs.getHeight());
+
+        if (pair == null)
+            return false;
+
+        build(u, t, pair.m_a, pair.m_b);
+        return true;
     }
 
     public PlayerAction getAction(int player, GameState gs) {
         PhysicalGameState pgs = gs.getPhysicalGameState();
+
+//        if (buildable == null)
+        findBuildablePositions(pgs);
+
         Player p = gs.getPlayer(player);
 
         // extend the range troops are allowed to be away from base
         relativeDistanceFromBase = Math.min(1.0f, relativeDistanceFromBase + relativeDistanceFromBase * REL_DIST_MULTIPLIER);
         enemyDistance = Math.min(Math.max(pgs.getHeight(), pgs.getWidth()), enemyDistance + 5*REL_DIST_MULTIPLIER);
 
-        int nbases = 0, nbarracks = 0, nworkers = 0;
+        int nbases = 0, nbarracks = 0, nworkers = 0, nressources = 0;
         for (Unit u2 : pgs.getUnits()) {
-            if (u2.getPlayer() == p.getID()) {
-                if (u2.getType() == baseType)
+            if (u2.getPlayer() == player) {
+                if (u2.getType() == baseType) {
                     ++nbases;
+                }
                 if (u2.getType() == barracksType)
                     ++nbarracks;
-                if (u2.getType() == workerType)
+                if (u2.getType().canHarvest)
                     ++nworkers;
             }
         }
-        // get number of ressources near my base
-        int nressources = 0;
 
         // behavior of bases:
         for (Unit u : pgs.getUnits()) {
             if (u.getType() == baseType
                     && u.getPlayer() == player
                     && gs.getActionAssignment(u) == null) {
-                int ressourcesNearBase = evalRessourcesNearBase(u, p, pgs);
-                nressources += ressourcesNearBase;
-                baseBehavior(u, p, pgs, ressourcesNearBase, nworkers);
+                int r = evalRessourcesNearBase(u, p, pgs);
+                nressources += r;
+                baseBehavior(u, p, pgs, r, nworkers);
             }
         }
 
@@ -201,8 +317,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     }
 
     public void barracksBehavior(Unit u, Player p, PhysicalGameState pgs) {
-        if (p.getResources() >= rangedType.cost) {
-
+        if (p.getResources() >= Math.max(heavyType.cost, rangedType.cost)) {
             if (heavyNext)
                 train(u, heavyType);
             else
@@ -210,6 +325,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
 
             heavyNext = !heavyNext;
         }
+
     }
 
     public void meleeUnitBehavior(Unit u, Player p, PhysicalGameState pgs) {
@@ -263,7 +379,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             // build a base:
             if (p.getResources() >= baseType.cost + resourcesUsed) {
                 Unit u = freeWorkers.remove(0);
-                buildIfNotAlreadyBuilding(u,baseType,u.getX(),u.getY(),reservedPositions,p,pgs);
+                buildIfNotAlreadyBuilding(u,baseType,u.getX(), u.getY(),reservedPositions,p,pgs);
                 resourcesUsed += baseType.cost;
             }
         }
@@ -272,7 +388,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             // build a barracks:
             if (p.getResources() >= barracksType.cost + resourcesUsed && !freeWorkers.isEmpty()) {
                 Unit u = freeWorkers.remove(0);
-                buildIfNotAlreadyBuilding(u,barracksType,u.getX(),u.getY(),reservedPositions,p,pgs);
+                buildIfNotAlreadyBuilding(u,barracksType,u.getX(), u.getY(),reservedPositions,p,pgs);
                 resourcesUsed += barracksType.cost;
             }
         }
