@@ -102,7 +102,8 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             }
         }
         // else
-        setting.usedBots.add(new CRush_V2(utt));
+//        setting.usedBots.add(new CRush_V2(utt));
+        setting.usedBots.add(new RealGrabAndShakeBot(utt));
         visitedMaps.put(pgs.clone(), setting);
     }
 
@@ -138,9 +139,12 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             try {
                 preGameAnalysis(gs, -1);
             } catch (Exception ignored) {
-
+                // do one RealGrabAndChangeBot instead of doing nothing
+                bots.add(new RealGrabAndShakeBot(utt));
             }
         }
+        if (bots.isEmpty())
+            bots.add(new RealGrabAndShakeBot(utt));
     }
 
     public PlayerAction getAction(int player, GameState gs) throws Exception {
