@@ -102,7 +102,7 @@ public class GrabAndShakeBot_V1 extends AbstractionLayerAI {
 
 
     public AI clone() {
-        return new LightDefense(utt, pf);
+        return new GrabAndShakeBot_V1(utt, pf);
     }
 
     @Override
