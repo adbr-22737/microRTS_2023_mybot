@@ -36,7 +36,7 @@ import java.util.*;
  *     <li>on pre-game evaluation analyse grid and for each persistent territory (seperated by barricades) run a bot -> because these are seperate games</li>
  * </ul>
  */
-public class GrabAndShakeBot extends AbstractionLayerAI {
+public class GrabAndShakeBot_V1 extends AbstractionLayerAI {
 
     // later:
     // sections
@@ -66,12 +66,12 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
 
     // TODO: evaluate if the enemy is attacking (use territories, distances, walk-behaviour of troups, ...)
 
-    public GrabAndShakeBot(UnitTypeTable a_utt) {
+    public GrabAndShakeBot_V1(UnitTypeTable a_utt) {
         this(a_utt, new AStarPathFinding());
     }
 
 
-    public GrabAndShakeBot(UnitTypeTable a_utt, PathFinding a_pf) {
+    public GrabAndShakeBot_V1(UnitTypeTable a_utt, PathFinding a_pf) {
         super(a_pf);
         reset(a_utt);
     }

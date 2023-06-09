@@ -4,17 +4,9 @@
  */
 package tests;
 
- import ai.RandomBiasedAI;
  import ai.abstraction.*;
- import ai.abstraction.cRush.CRush_V2;
- import ai.abstraction.pathfinding.BFSPathFinding;
  import ai.core.AI;
- import ai.mcts.believestatemcts.BS1_NaiveMCTS;
- import ai.mcts.believestatemcts.BS2_NaiveMCTS;
- import ai.mcts.believestatemcts.BS3_NaiveMCTS;
- import ai.mcts.informedmcts.InformedNaiveMCTS;
  import ai.montecarlo.MonteCarlo;
- import ai.puppet.PuppetSearchMCTS;
  import gui.PhysicalGameStatePanel;
  import rts.GameState;
  import rts.PhysicalGameState;
@@ -45,7 +37,7 @@ public class GameVisualSimulationTest {
         AI ai1 = new MonteCarlo(utt);
 //        AI ai1 = new LightRush(utt);
 //        AI ai1 = new CRush_V2(utt);
-        AI ai2 = new GrabAndShakeBot(utt);
+        AI ai2 = new GrabAndShakeBot_V1(utt);
 
         JFrame w = PhysicalGameStatePanel.newVisualizer(gs,640,640,false,PhysicalGameStatePanel.COLORSCHEME_BLACK);
 //        JFrame w = PhysicalGameStatePanel.newVisualizer(gs,640,640,false,PhysicalGameStatePanel.COLORSCHEME_WHITE);
