@@ -33,8 +33,8 @@ public class GameVisualSimulationTest {
 //        PhysicalGameState pgs = PhysicalGameState.load("maps/BWDistantResources32x32.xml", utt);
 //        PhysicalGameState pgs = PhysicalGameState.load("maps/barricades24x24.xml", utt);
 //        PhysicalGameState pgs = PhysicalGameState.load("maps/EightBasesWorkers16x12.xml", utt);
-//        PhysicalGameState pgs = PhysicalGameState.load("maps/16x16/basesWorkers16x16.xml", utt);
-        PhysicalGameState pgs = PhysicalGameState.load("maps/24x24/basesWorkers24x24.xml", utt);
+        PhysicalGameState pgs = PhysicalGameState.load("maps/16x16/basesWorkers16x16.xml", utt);
+//        PhysicalGameState pgs = PhysicalGameState.load("maps/24x24/basesWorkers24x24.xml", utt);
 //        PhysicalGameState pgs = PhysicalGameState.load("maps/bases8x8.xml", utt);
 //        PhysicalGameState pgs = PhysicalGameState.load("maps/letMeOut.xml", utt);
 //        PhysicalGameState pgs = PhysicalGameState.load("maps/itsNotSafe.xml", utt);

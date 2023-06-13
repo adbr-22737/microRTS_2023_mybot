@@ -6,6 +6,8 @@ import ai.abstraction.pathfinding.PathFinding;
 import ai.core.AI;
 import ai.core.AIWithComputationBudget;
 import ai.core.ParameterSpecification;
+import com.eclipsesource.json.Json;
+import com.eclipsesource.json.JsonObject;
 import rts.*;
 import rts.units.Unit;
 import rts.units.UnitType;
@@ -13,8 +15,10 @@ import rts.units.UnitTypeTable;
 import util.Pair;
 
 import java.awt.*;
+import java.io.*;
 import java.util.*;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class GrabAndShakeBot extends AbstractionLayerAI {
     static int DIST_ENEMY_BASE_TO_BE_RUSH = 30;
@@ -107,13 +111,74 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         visitedMaps.put(pgs.clone(), setting);
     }
 
+
+    static final char FREE = '_';
+    static final char BLCOKED = 'X';
+    static final char RESOURCE = 'r';
+    static final char BASE = 'b';
+    static final char BARRACKS = 'c';
+    static final char MELEE = 'm';
+    static final char WORKER = 'w';
+
     @Override
     public void preGameAnalysis(GameState gs, long milliseconds, String readWriteFolder) throws Exception {
-//        if (readWriteFolder == null) {
-//            preGameAnalysis(gs, milliseconds);
-//            return;
-//        }
-        preGameAnalysis(gs, milliseconds);
+        if (readWriteFolder == null) {
+            preGameAnalysis(gs, milliseconds);
+            return;
+        }
+
+        // evaluate which map it is
+        PhysicalGameState pgs = gs.getPhysicalGameState();
+        int w = pgs.getWidth(), h = pgs.getHeight();
+        int size = w*h;
+        char[] indices = new char[size];
+        int counter = 0;
+        outer: for (boolean[] row: pgs.getAllFree()) {
+            for (boolean isFree: row) {
+                indices[counter++] = isFree ? FREE : BLCOKED;
+                // to be save and get no exception
+                if (counter >= size)
+                    break outer;
+            }
+        }
+
+        List<Unit> bases = new ArrayList<>();
+
+        for (Unit u: pgs.getUnits()) {
+            if (u.getType().isResource) {
+                indices[u.getY() * w + u.getX()] = RESOURCE;
+            } else if (u.getType().isStockpile) {
+                indices[u.getY() * w + u.getX()] = BASE;
+                bases.add(u);
+            } else if (u.getType().canHarvest) {
+                indices[u.getY() * w + u.getX()] = WORKER;
+            } else if (u.getType().canAttack) {
+                indices[u.getY() * w + u.getX()] = MELEE;
+            } else {
+                indices[u.getY() * w + u.getX()] = BARRACKS;
+            }
+        }
+
+        StringBuilder b = new StringBuilder();
+        for (char index : indices) {
+            b.append(index);
+        }
+        String fileName = b.append(".json").toString();
+
+
+        File folder = new File(readWriteFolder);
+        for (final File entry: folder.listFiles()) {
+            if (entry.isFile() && entry.getName().equals(fileName)) {
+                Scanner scanner = new Scanner(entry);
+                JsonObject o = Json.parse(scanner.tokens().collect(Collectors.joining())).asObject();
+                //TODO: parse file
+                return;
+            }
+        }
+        // else...
+        File newFile = new File(fileName);
+        newFile.createNewFile();
+        // TODO: analyse pgs
 
         // TODO: alle seperaten territorien finden -> gs.getPhysicalGameState().getAllFree()
         // TODO: save results of analysis
