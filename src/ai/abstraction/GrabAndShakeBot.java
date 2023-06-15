@@ -13,6 +13,7 @@ import rts.units.Unit;
 import rts.units.UnitType;
 import rts.units.UnitTypeTable;
 import util.Pair;
+import weka.core.pmml.jaxbbindings.MININGFUNCTION;
 
 import java.awt.*;
 import java.io.*;
@@ -21,7 +22,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class GrabAndShakeBot extends AbstractionLayerAI {
-    static int DIST_ENEMY_BASE_TO_BE_RUSH = 30;
+    static int DIST_ENEMY_BASE_TO_BE_RUSH = 20;
 
     // for remembering old maps
     HashMap<PhysicalGameState, GrabAndShakeBotSetting> visitedMaps;
@@ -82,33 +83,91 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
 
     @Override
     public void preGameAnalysis(GameState gs, long milliseconds) throws Exception {
-        //TODO: for each territory
         PhysicalGameState pgs = gs.getPhysicalGameState();
-        Unit b1 = null, b2 = null;
+        // TODO: evaluate free places to build stuff
+
+        // evaluate territories
+        // -> start at bases and do flood fill -> if bases left in open_bases: new territory
+        LinkedList<Unit> my_open_bases = new LinkedList<>();
+        HashSet<Unit> bases = new HashSet<>();
+        int simulate_player = -1;
         for (Unit u: pgs.getUnits()) {
+            if (simulate_player == -1)
+                simulate_player = u.getPlayer();
+
             if (u.getType().isStockpile) {
-                if (b1 == null)
-                    b1 = u;
-                else if (b2 == null)
-                    b2 = u;
-                else
-                    break;
+                bases.add(u);
+                if (u.getPlayer() == simulate_player) {
+                    my_open_bases.push(u);
+                }
             }
+
         }
 
+        int w = pgs.getWidth(), h = pgs.getHeight();
         GrabAndShakeBotSetting setting = new GrabAndShakeBotSetting();
 
-        if (b1 != null && b2 != null) {
-            if (distance(b1,b2) <= DIST_ENEMY_BASE_TO_BE_RUSH) {
+        while (!my_open_bases.isEmpty()) {
+            Unit u = my_open_bases.pop();
+            // flood fill
+            Unit closest_enemy_base = null;
+
+            boolean[] visited = new boolean[w*h];
+            visited[u.getY()*w+u.getX()] = true;
+
+            Queue<Pair<Integer, Integer>> queue = new ArrayDeque<>();
+            queue.add(new Pair<>(u.getX()-1, u.getY()));
+            queue.add(new Pair<>(u.getX()+1, u.getY()));
+            queue.add(new Pair<>(u.getX(), u.getY()-1));
+            queue.add(new Pair<>(u.getX(), u.getY()+1));
+
+            int smallestX = Integer.MAX_VALUE, smallestY = Integer.MAX_VALUE, biggestX = Integer.MIN_VALUE, biggestY = Integer.MIN_VALUE;
+
+            while (!queue.isEmpty()) {
+                Pair<Integer, Integer> pos = queue.poll();
+                int x = pos.m_a, y = pos.m_b;
+                if (visited[y*w+x] || pgs.getTerrain(x,y) == PhysicalGameState.TERRAIN_WALL)
+                    continue;
+
+                if (x < smallestX) {
+                    smallestX = x;
+                } else if (x > biggestX) {
+                    biggestX = x;
+                }
+                if (y < smallestY) {
+                    smallestY = y;
+                } else if (y > biggestY) {
+                    biggestY = y;
+                }
+
+                visited[y*w+x] = true;
+                Optional<Unit> optBase = bases.stream().filter((unit) -> unit.getX() == x && unit.getY() == y).findFirst();
+                if (optBase.isPresent()) {
+                    Unit base = optBase.get();
+                    if (base.getPlayer() == simulate_player) {
+                        my_open_bases.remove(base);
+                    } else if (closest_enemy_base == null) {
+                        closest_enemy_base = base;
+                    }
+                }
+                // checks are made, when they get polled
+                queue.add(new Pair<>(x-1,y));
+                queue.add(new Pair<>(x+1,y));
+                queue.add(new Pair<>(x,y-1));
+                queue.add(new Pair<>(x,y+1));
+            }
+
+            // when flood fill is done -> set territory size
+            setting.territories.add(new Rectangle(smallestX, smallestY, biggestX-smallestX, biggestY-smallestY));
+
+            if (closest_enemy_base != null && distance(u, closest_enemy_base) <= DIST_ENEMY_BASE_TO_BE_RUSH) {
                 setting.usedBots.add(new WorkerRushPlusPlus(utt));
-                visitedMaps.put(pgs.clone(), setting);
-                return;
+            } else {
+                setting.usedBots.add(new RealGrabAndShakeBot(utt));
             }
         }
-        // else
-//        setting.usedBots.add(new CRush_V2(utt));
-        setting.usedBots.add(new RealGrabAndShakeBot(utt));
-        visitedMaps.put(pgs.clone(), setting);
+
+        visitedMaps.put(pgs, setting);
     }
 
 
@@ -126,6 +185,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             preGameAnalysis(gs, milliseconds);
             return;
         }
+        long startTime = System.currentTimeMillis();
 
         // evaluate which map it is
         PhysicalGameState pgs = gs.getPhysicalGameState();
@@ -163,29 +223,46 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         for (char index : indices) {
             b.append(index);
         }
-        String fileName = b.append(".json").toString();
+        String fileName = b.append(".gsb").toString();
 
 
         File folder = new File(readWriteFolder);
-        for (final File entry: folder.listFiles()) {
+        for (final File entry: Objects.requireNonNull(folder.listFiles())) {
             if (entry.isFile() && entry.getName().equals(fileName)) {
                 Scanner scanner = new Scanner(entry);
-                JsonObject o = Json.parse(scanner.tokens().collect(Collectors.joining())).asObject();
-                //TODO: parse file
+                GrabAndShakeBotSetting setting = new GrabAndShakeBotSetting();
+                setting.parseFromFile(scanner);
+                bots = setting.usedBots;
+                territories = setting.territories;
                 return;
             }
         }
         // else...
+        long used = System.currentTimeMillis() - startTime;
+        if (used >= milliseconds) {
+            // set a bot and return
+            this.bots.add(new RealGrabAndShakeBot(utt));
+            return;
+        }
+
         File newFile = new File(fileName);
         newFile.createNewFile();
         // TODO: analyse pgs
+        // analyses the pgs
+        preGameAnalysis(gs, System.currentTimeMillis()-startTime);
 
-        // TODO: alle seperaten territorien finden -> gs.getPhysicalGameState().getAllFree()
-        // TODO: save results of analysis
-        // hinter den Key schreiben: wie viele bereiche/bots nötig, abgrenzung der bereiche (z.b. rect mit smallest x,y und biggest x,y),
-        //    #Ressourcen in jedem bereich, #Startressourcen
-
-        // evaluate free places to build stuff
+        GrabAndShakeBotSetting setting = new GrabAndShakeBotSetting();
+        setting.usedBots = bots;
+        setting.territories = territories;
+        // writing the result of analysis to newFile
+        try {
+            FileWriter writer = new FileWriter(newFile);
+            writer.write(setting.toString());
+            writer.close();
+        } catch (Exception ignored) {
+            // delete the file so we know next time, that we need to re-do the analysis
+            newFile.delete();
+        }
     }
 
     void loadFromVisitedMaps(GameState gs) {
