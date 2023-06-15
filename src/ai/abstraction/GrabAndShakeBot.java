@@ -231,7 +231,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             if (entry.isFile() && entry.getName().equals(fileName)) {
                 Scanner scanner = new Scanner(entry);
                 GrabAndShakeBotSetting setting = new GrabAndShakeBotSetting();
-                setting.parseFromFile(scanner);
+                setting.parseFromFile(scanner, utt, pgs);
                 bots = setting.usedBots;
                 territories = setting.territories;
                 return;
@@ -247,7 +247,6 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
 
         File newFile = new File(fileName);
         newFile.createNewFile();
-        // TODO: analyse pgs
         // analyses the pgs
         preGameAnalysis(gs, System.currentTimeMillis()-startTime);
 
@@ -278,15 +277,9 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         });
 
         if (bots.isEmpty()) {
-            try {
-                preGameAnalysis(gs, -1);
-            } catch (Exception ignored) {
-                // do one RealGrabAndChangeBot instead of doing nothing
-                bots.add(new RealGrabAndShakeBot(utt));
-            }
-        }
-        if (bots.isEmpty())
+            // do one RealGrabAndChangeBot instead of doing nothing
             bots.add(new RealGrabAndShakeBot(utt));
+        }
     }
 
     public PlayerAction getAction(int player, GameState gs) throws Exception {
@@ -308,6 +301,11 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         }
 
         return action;
+    }
+
+    @Override
+    public void gameOver(int winner) {
+        // TODO: use this, to evaluate strategy and adapt it for next time on this map
     }
 
 
