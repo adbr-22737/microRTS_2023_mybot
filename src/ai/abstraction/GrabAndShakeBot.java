@@ -70,7 +70,14 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
 
     public AI clone() {
         GrabAndShakeBot b = new GrabAndShakeBot(utt, pf);
-        // TODO: clone all fields of this bot into b
+        b.bots = new ArrayList<>(bots);
+        b.territories = new ArrayList<>(territories);
+        b.buildable = new int[buildable.length][buildable[0].length];
+        for (int i = 0; i < buildable.length; i++) {
+            b.buildable[i] = Arrays.copyOf(buildable[i], buildable[i].length);
+        }
+        b.visitedMaps = new HashMap<>(visitedMaps);
+        b.needLoading = true;
         return b;
     }
 
