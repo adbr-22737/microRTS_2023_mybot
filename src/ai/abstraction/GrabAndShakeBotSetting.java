@@ -14,6 +14,11 @@ public class GrabAndShakeBotSetting {
     List<Rectangle> territories = new ArrayList<>();
     List<AIWithComputationBudget> usedBots = new ArrayList<>();
 
+    public void fromGrabAndShakeBot(GrabAndShakeBot bot) {
+        territories = new ArrayList<>(bot.territories);
+        usedBots = new ArrayList<>(bot.bots);
+    }
+
     public void parseFromFile(Scanner sc, UnitTypeTable utt, PhysicalGameState pgs) {
         usedBots.clear();
         territories.clear();
