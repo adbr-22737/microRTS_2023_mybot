@@ -18,14 +18,11 @@ import java.util.List;
 public class GrabAndShakeBot extends AbstractionLayerAI {
     static int DIST_ENEMY_BASE_TO_BE_RUSH = 20;
 
-    // for remembering old maps
-    HashMap<PhysicalGameState, GrabAndShakeBotSetting> visitedMaps;
 
     List<AIWithComputationBudget> bots;
     List<Rectangle> territories;
 
     protected UnitTypeTable utt;
-    boolean needLoading = true;
 
     // TODO: use player indices to show which territory belongs to which player
     /** 0: free, > 0: occupied, < 0: reserved*/
@@ -40,14 +37,12 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         super(a_pf);
         bots = new ArrayList<>();
         territories = new ArrayList<>();
-        visitedMaps = new HashMap<>();
         buildable = new int[1][1];
         reset(a_utt);
     }
 
     public void reset() {
         super.reset();
-        needLoading = true;
         for (AIWithComputationBudget bot: bots) {
             bot.reset();
         }
@@ -56,7 +51,6 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     public void reset(UnitTypeTable a_utt) {
         super.reset();
         utt = a_utt;
-        needLoading = true;
         for (AIWithComputationBudget bot: bots) {
             bot.reset(a_utt);
         }
@@ -71,8 +65,6 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         for (int i = 0; i < buildable.length; i++) {
             b.buildable[i] = Arrays.copyOf(buildable[i], buildable[i].length);
         }
-        b.visitedMaps = new HashMap<>(visitedMaps);
-        b.needLoading = true;
         return b;
     }
 
@@ -177,8 +169,6 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
                 setting.usedBots.add(new RealGrabAndShakeBot(utt));
             }
         }
-
-        visitedMaps.put(pgs, setting);
 
         this.botsTerritoriesFromSetting(setting);
     }
@@ -292,9 +282,9 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         }
         // analyses the pgs
         preGameAnalysis(gs, System.currentTimeMillis()-startTime);
-
+        // after that the fields of this are set properly
         GrabAndShakeBotSetting setting = new GrabAndShakeBotSetting();
-        botsTerritoriesFromSetting(setting);
+        setting.fromGrabAndShakeBot(this);
         // writing the result of analysis to newFile
         try {
             FileWriter writer = new FileWriter(newFile);
@@ -306,30 +296,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         }
     }
 
-    void loadFromVisitedMaps(GameState gs) {
-        PhysicalGameState pgs = gs.getPhysicalGameState();
-        bots.clear();
-        territories.clear();
-
-        visitedMaps.forEach((old_pgs, setting) -> {
-            if (pgs.equivalents(old_pgs)) {
-                bots.addAll(setting.usedBots);
-                territories.addAll(setting.territories);
-            }
-        });
-
-        if (bots.isEmpty()) {
-            // do one RealGrabAndChangeBot instead of doing nothing
-            bots.add(new RealGrabAndShakeBot(utt));
-        }
-    }
-
     public PlayerAction getAction(int player, GameState gs) throws Exception {
-        if (needLoading) {
-            loadFromVisitedMaps(gs);
-            needLoading = false;
-        }
-
         PlayerAction action = new PlayerAction();
 
         // TODO: multi thread this if num_bots > 1
@@ -372,7 +339,10 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
                     }
                 }
             }
+        } else {
+            gss[0] = gs;
         }
+
         if (size > 0) {
             for (int i = 0; i < size; ++i) {
                 PlayerAction pa = bots.get(i).getAction(player, gss[i]);
