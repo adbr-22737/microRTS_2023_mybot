@@ -1,25 +1,19 @@
 package ai.abstraction;
 
-import ai.abstraction.cRush.CRush_V2;
 import ai.abstraction.pathfinding.AStarPathFinding;
 import ai.abstraction.pathfinding.PathFinding;
 import ai.core.AI;
 import ai.core.AIWithComputationBudget;
 import ai.core.ParameterSpecification;
-import com.eclipsesource.json.Json;
-import com.eclipsesource.json.JsonObject;
 import rts.*;
 import rts.units.Unit;
-import rts.units.UnitType;
 import rts.units.UnitTypeTable;
 import util.Pair;
-import weka.core.pmml.jaxbbindings.MININGFUNCTION;
 
 import java.awt.*;
 import java.io.*;
 import java.util.*;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class GrabAndShakeBot extends AbstractionLayerAI {
     static int DIST_ENEMY_BASE_TO_BE_RUSH = 20;
@@ -47,6 +41,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         bots = new ArrayList<>();
         territories = new ArrayList<>();
         visitedMaps = new HashMap<>();
+        buildable = new int[1][1];
         reset(a_utt);
     }
 
@@ -86,6 +81,13 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     }
     private int distance(int x1, int y1, int x2, int y2) {
         return Math.abs(x2-x1) + Math.abs(y2-y1);
+    }
+
+    public void botsTerritoriesFromSetting(GrabAndShakeBotSetting setting) {
+        bots.clear();
+        bots = setting.usedBots;
+        territories.clear();
+        territories = setting.territories;
     }
 
     @Override
@@ -133,6 +135,8 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             while (!queue.isEmpty()) {
                 Pair<Integer, Integer> pos = queue.poll();
                 int x = pos.m_a, y = pos.m_b;
+                if (x < 0 || y < 0 || x >= w || y >= h)
+                    continue;
                 if (visited[y*w+x] || pgs.getTerrain(x,y) == PhysicalGameState.TERRAIN_WALL)
                     continue;
 
@@ -175,6 +179,8 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         }
 
         visitedMaps.put(pgs, setting);
+
+        this.botsTerritoriesFromSetting(setting);
     }
 
 
@@ -185,6 +191,32 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     static final char BARRACKS = 'c';
     static final char MELEE = 'm';
     static final char WORKER = 'w';
+
+    public static String compressString(String s) {
+        if (s.length() < 2)
+            return s;
+        char[] arr = s.toCharArray();
+        StringBuilder b = new StringBuilder();
+        int occurrences = 1;
+        for (int i = 1; i < arr.length; i++) {
+            if (arr[i] == arr[i-1]) {
+                occurrences++;
+            } else {
+                b.append(arr[i-1]);
+                if (occurrences > 1) {
+                    b.append(occurrences);
+                }
+                occurrences = 1;
+            }
+        }
+
+        b.append(arr[arr.length-1]);
+        if (occurrences > 1) {
+            b.append(occurrences);
+        }
+
+        return b.toString();
+    }
 
     @Override
     public void preGameAnalysis(GameState gs, long milliseconds, String readWriteFolder) throws Exception {
@@ -230,8 +262,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         for (char index : indices) {
             b.append(index);
         }
-        String fileName = b.append(".gsb").toString();
-
+        String fileName = compressString(b.append(".gsb").toString());
 
         File folder = new File(readWriteFolder);
         for (final File entry: Objects.requireNonNull(folder.listFiles())) {
@@ -239,8 +270,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
                 Scanner scanner = new Scanner(entry);
                 GrabAndShakeBotSetting setting = new GrabAndShakeBotSetting();
                 setting.parseFromFile(scanner, utt, pgs);
-                bots = setting.usedBots;
-                territories = setting.territories;
+                botsTerritoriesFromSetting(setting);
                 return;
             }
         }
@@ -252,14 +282,19 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             return;
         }
 
-        File newFile = new File(fileName);
-        newFile.createNewFile();
+        File newFile = new File(readWriteFolder+"/"+fileName);
+        try {
+            newFile.createNewFile();
+        } catch (Exception ignored) {
+            System.out.println("GrabAndShakeBot: Exception occured, when creating a new file.");
+            preGameAnalysis(gs, System.currentTimeMillis()-startTime);
+            return;
+        }
         // analyses the pgs
         preGameAnalysis(gs, System.currentTimeMillis()-startTime);
 
         GrabAndShakeBotSetting setting = new GrabAndShakeBotSetting();
-        setting.usedBots = bots;
-        setting.territories = territories;
+        botsTerritoriesFromSetting(setting);
         // writing the result of analysis to newFile
         try {
             FileWriter writer = new FileWriter(newFile);
@@ -299,11 +334,56 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
 
         // TODO: multi thread this if num_bots > 1
 
-        for (AIWithComputationBudget bot: bots) {
-            PlayerAction pa = bot.getAction(player, gs);
-            // add all actions to the overall bot
-            for (Pair<Unit, UnitAction> pair: pa.getActions()) {
-                action.addUnitAction(pair.m_a, pair.m_b);
+        // TODO: use territories to tell bots where they should look
+        int size = bots.size();
+        PhysicalGameState[] pgss = new PhysicalGameState[size];
+        GameState[] gss = new GameState[size];
+
+        if (size > 1) {
+            // territories needed
+            PhysicalGameState pgs = gs.getPhysicalGameState();
+
+            for (int i = 0; i < size; i++) {
+                Rectangle range = territories.get(i);
+                // PhysicalGameState
+                pgss[i] = new PhysicalGameState(range.width, range.height);
+                // keeping players and units without cloning them
+                for (Player p: pgs.getPlayers()) {
+                    pgss[i].addPlayer(p);
+                }
+                for (Unit u: pgs.getUnitsInRectangle(range.x, range.y, range.width, range.height)) {
+                    pgss[i].addUnit(u);
+                }
+                for (int x = range.x; x < range.x+range.width; ++x) {
+                    for (int y = range.y; y < range.y+range.height; ++y) {
+                        int t = pgs.getTerrain(x,y);
+                        int setX = x-range.width, setY = y-range.height;
+                        pgss[i].setTerrain(setX, setY, t);
+                    }
+                }
+                // GameState -> vectorObservation is not important -> not necessary to clone something for that
+                gss[i] = new GameState(pgss[i],utt);
+                // copy all unitActions (we can get the reference with this function and manipulate it)
+                Map<Unit, UnitActionAssignment> unitActions = gss[i].getUnitActions();
+                for (Map.Entry<Unit, UnitActionAssignment> entry: gs.getUnitActions().entrySet()) {
+                    Unit u = entry.getKey();
+                    if (range.contains(u.getX(), u.getY())) {
+                        unitActions.put(u, entry.getValue());
+                    }
+                }
+            }
+        }
+        if (size > 0) {
+            for (int i = 0; i < size; ++i) {
+                PlayerAction pa = bots.get(i).getAction(player, gss[i]);
+
+                // add all actions to the overall bot
+                for (Pair<Unit, UnitAction> pair : pa.getActions()) {
+                    action.addUnitAction(pair.m_a, pair.m_b);
+                }
+
+                // add all actionAssignments to the real GameState (we can manipulate the real gamestate because we get the same reference)
+                gs.getUnitActions().putAll(gss[i].getUnitActions());
             }
         }
 
