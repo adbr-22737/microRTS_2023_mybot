@@ -75,7 +75,7 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
 
 
     public AI clone() {
-        return new LightDefense(utt, pf);
+        return new RealGrabAndShakeBot(utt, pf);
     }
 
     @Override
@@ -184,7 +184,9 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
     @Override
     public boolean buildIfNotAlreadyBuilding(Unit u, UnitType t, int x, int y, List<Integer> reservedPositions, Player p, PhysicalGameState pgs) {
         AbstractAction action = getAbstractAction(u);
-        if (action instanceof Build && ((Build) action).type == t)
+        // can't access type for some reason -> doing trick over creating new Build
+        Build tmpBuild = new Build(u,t,x,y,pf);
+        if (tmpBuild.equals(action))
             return false;
 
         Pair<Integer, Integer> pair = useBuildablePositionAround(x,y);
@@ -407,7 +409,7 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
                     AbstractAction aa = getAbstractAction(u);
                     if (aa instanceof Harvest) {
                         Harvest h_aa = (Harvest)aa;
-                        if (h_aa.base!=closestBase) harvest(u, null, closestBase);
+                        if (h_aa.getBase()!=closestBase) harvest(u, null, closestBase);
                     } else {
                         harvest(u, null, closestBase);
                     }
@@ -418,7 +420,7 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
                     AbstractAction aa = getAbstractAction(u);
                     if (aa instanceof Harvest) {
                         Harvest h_aa = (Harvest)aa;
-                        if (h_aa.target != closestResource || h_aa.base!=closestBase) harvest(u, closestResource, closestBase);
+                        if (h_aa.getTarget() != closestResource || h_aa.getBase()!=closestBase) harvest(u, closestResource, closestBase);
                     } else {
                         harvest(u, closestResource, closestBase);
                     }
