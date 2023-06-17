@@ -298,7 +298,7 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
         // TODO: use more workers if harvesting is with a long distance and less when it is with small distance
         int nressources = r_sD.m_a;
         int smallestDist = r_sD.m_b;
-        if (nworkers < (smallestDist/4) && p.getResources() >= workerType.cost) {
+        if ((nworkers < (smallestDist/4) || nworkers < 2) && p.getResources() >= workerType.cost) {
             train(u, workerType);
         }
     }
@@ -366,13 +366,16 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
         // closestDistance < enemyDistance: attack attacking enemies / distToMyBase < (averageSize*relativeDistanceFromBase): walk towards enemy until you are to far away from base
         float maxDistAway = u.getType()==heavyType ? averageSize*relativeDistanceFromBase+1 : averageSize*relativeDistanceFromBase;
         // defend against enemy
-        if (closestEnemy!=null && (closestDistance < enemyDistance)) {
+        /*if (closestEnemy!=null && (closestDistance < enemyDistance)) {
             for (Unit unit: getNeighbouringMeleesOf(u, p, pgs)) {
                 attack(unit, closestEnemy);
             }
         }
         // go forward
         else if (closestEnemy!=null && distToMyBase < maxDistAway) {
+            attack(u, closestEnemy);
+        }*/
+        if (closestEnemy != null && (distToMyBase < maxDistAway || closestDistance < enemyDistance)) {
             attack(u, closestEnemy);
         }
         // TODO: return from battle (look at CRush for example)
