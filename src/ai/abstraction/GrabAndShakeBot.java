@@ -28,6 +28,10 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
     /** 0: free, > 0: occupied, < 0: reserved*/
     int[][] buildable;
 
+    File currentMapFile;
+    GrabAndShakeBotSetting currentSetting;
+    int myPlayerIdx = -1;
+
     public GrabAndShakeBot(UnitTypeTable a_utt) {
         this(a_utt, new AStarPathFinding());
     }
@@ -46,6 +50,9 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         for (AIWithComputationBudget bot: bots) {
             bot.reset();
         }
+        currentSetting = null;
+        currentMapFile = null;
+        myPlayerIdx = -1;
     }
 
     public void reset(UnitTypeTable a_utt) {
@@ -54,6 +61,9 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         for (AIWithComputationBudget bot: bots) {
             bot.reset(a_utt);
         }
+        currentSetting = null;
+        currentMapFile = null;
+        myPlayerIdx = -1;
     }
 
 
@@ -171,6 +181,8 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
                 setting.usedBots.add(new RealGrabAndShakeBot(utt));
             }
         }
+
+        currentSetting = setting;
 
         this.botsTerritoriesFromSetting(setting);
     }
@@ -296,9 +308,14 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             // delete the file so we know next time, that we need to re-do the analysis
             newFile.delete();
         }
+
+        currentSetting = setting;
+        currentMapFile = newFile;
     }
 
     public PlayerAction getAction(int player, GameState gs) throws Exception {
+        myPlayerIdx = player;
+
         PlayerAction action = new PlayerAction();
 
         // TODO: multi thread this if num_bots > 1
@@ -362,7 +379,37 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
 
     @Override
     public void gameOver(int winner) {
-        // TODO: use this, to evaluate strategy and adapt it for next time on this map
+        // adapt behaviour for a map
+        if (currentSetting == null || currentMapFile == null) {
+            return;
+        }
+
+        // WIN or TIE or no playerIdx set -> do nothing
+        if (winner < 0 || myPlayerIdx < 0 || winner == myPlayerIdx) {
+            return;
+        }
+
+        // LOST -> change strategy
+        int size = currentSetting.usedBots.size();
+        for (int i = 0; i < size; i++) {
+            if (currentSetting.usedBots.get(i) instanceof RealGrabAndShakeBot) {
+                currentSetting.usedBots.set(i, new WorkerRushPlusPlus(utt));
+            } else {
+                currentSetting.usedBots.set(i, new RealGrabAndShakeBot(utt));
+            }
+        }
+
+        // save
+        try {
+            // override
+            FileWriter writer = new FileWriter(currentMapFile, false);
+            writer.write(currentSetting.toString());
+            writer.close();
+        } catch (Exception ignored) {
+            // delete the file so we know next time, that we need to re-do the analysis
+            currentMapFile.delete();
+        }
+
     }
 
 
