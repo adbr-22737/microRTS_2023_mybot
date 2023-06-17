@@ -1,5 +1,7 @@
-package ai.abstraction;
+package bots;
 
+import ai.abstraction.AbstractionLayerAI;
+import ai.abstraction.WorkerRushPlusPlus;
 import ai.abstraction.pathfinding.AStarPathFinding;
 import ai.abstraction.pathfinding.PathFinding;
 import ai.core.AI;

@@ -4,17 +4,9 @@
  */
 package tests;
 
- import ai.RandomBiasedAI;
  import ai.abstraction.*;
- import ai.abstraction.cRush.CRush_V2;
- import ai.abstraction.pathfinding.BFSPathFinding;
  import ai.core.AI;
- import ai.mcts.believestatemcts.BS1_NaiveMCTS;
- import ai.mcts.believestatemcts.BS2_NaiveMCTS;
- import ai.mcts.believestatemcts.BS3_NaiveMCTS;
- import ai.mcts.informedmcts.InformedNaiveMCTS;
- import ai.montecarlo.MonteCarlo;
- import ai.puppet.PuppetSearchMCTS;
+ import bots.GrabAndShakeBot;
  import gui.PhysicalGameStatePanel;
  import rts.GameState;
  import rts.PhysicalGameState;
