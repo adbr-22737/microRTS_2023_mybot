@@ -1,5 +1,6 @@
-package ai.abstraction;
+package bots;
 
+import ai.abstraction.WorkerRushPlusPlus;
 import ai.core.AI;
 import ai.core.AIWithComputationBudget;
 import rts.PhysicalGameState;
