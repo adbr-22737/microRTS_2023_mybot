@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.List;
 
 public class GrabAndShakeBot extends AbstractionLayerAI {
-    static int DIST_ENEMY_BASE_TO_BE_RUSH = 20;
+    static int DIST_ENEMY_BASE_TO_BE_RUSH = 22;
 
 
     List<AIWithComputationBudget> bots;
