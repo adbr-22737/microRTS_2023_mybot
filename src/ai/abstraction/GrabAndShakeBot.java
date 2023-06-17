@@ -87,6 +87,8 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         PhysicalGameState pgs = gs.getPhysicalGameState();
         // TODO: evaluate free places to build stuff
 
+        // TODO: evaluate strategy not by distance to enemy base, but by simulating building barracks and training first unit vs. WorkerRushPlusPlus (or formula with distance to resources)
+
         // evaluate territories
         // -> start at bases and do flood fill -> if bases left in open_bases: new territory
         LinkedList<Unit> my_open_bases = new LinkedList<>();
@@ -300,8 +302,6 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         PlayerAction action = new PlayerAction();
 
         // TODO: multi thread this if num_bots > 1
-
-        // TODO: use territories to tell bots where they should look
         int size = bots.size();
         PhysicalGameState[] pgss = new PhysicalGameState[size];
         GameState[] gss = new GameState[size];

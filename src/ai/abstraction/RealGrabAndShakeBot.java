@@ -80,11 +80,6 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
 
     @Override
     public void preGameAnalysis(GameState gs, long milliseconds, String readWriteFolder) throws Exception {
-        // TODO: alle seperaten territorien finden -> gs.getPhysicalGameState().getAllFree()
-        // TODO: save results of analysis
-        // hinter den Key schreiben: wie viele bereiche/bots nötig, abgrenzung der bereiche (z.b. rect mit smallest x,y und biggest x,y),
-        //    #Ressourcen in jedem bereich, #Startressourcen
-
         // evaluate free places to build stuff
         PhysicalGameState pgs = gs.getPhysicalGameState();
         findBuildablePositions(pgs);
@@ -231,9 +226,9 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
             if (u.getType() == baseType
                     && u.getPlayer() == player
                     && gs.getActionAssignment(u) == null) {
-                int r = evalRessourcesNearBase(u, p, pgs);
-                nressources += r;
-                baseBehavior(u, p, pgs, r, nworkers);
+                Pair<Integer, Integer> r_sD = evalRessourcesNearBase(u, p, pgs);
+                nressources += r_sD.m_a;
+                baseBehavior(u, p, pgs, r_sD, nworkers);
             }
         }
 
@@ -247,18 +242,22 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
         }
 
         int ntroups = 0;
+        int enemyTroups = 0;
         // behavior of melee units:
         for (Unit u : pgs.getUnits()) {
-            if (u.getType().canAttack && !u.getType().canHarvest
-                    && u.getPlayer() == player) {
-                ++ntroups;
-                if (gs.getActionAssignment(u) == null)
-                    meleeUnitBehavior(u, p, pgs);
+            if (u.getType().canAttack && !u.getType().canHarvest) {
+                if (u.getPlayer() == player) {
+                    ++ntroups;
+                    if (gs.getActionAssignment(u) == null)
+                        meleeUnitBehavior(u, p, pgs);
+                } else {
+                    ++enemyTroups;
+                }
             }
         }
 
-        // reset relativeDistance if army is dead
-        if (ntroups <= 1) {
+        // reset relativeDistance if army is weaker than enemy army
+        if (ntroups < enemyTroups) {
             relativeDistanceFromBase = START_REL_DIST_FROM_TERRITORY;
             enemyDistance = START_ENEMY_DIST;
         }
@@ -277,23 +276,29 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
         return translateActions(player, gs);
     }
 
-    public int evalRessourcesNearBase(Unit u, Player p, PhysicalGameState pgs) {
-        int maxDistFromBase = MAX_DIST_RESOUCES_AWAY_FROM_BASE_TO_TRAIN_WORKERS;
+    public Pair<Integer, Integer> evalRessourcesNearBase(Unit u, Player p, PhysicalGameState pgs) {
+//        int maxDistFromBase = MAX_DIST_RESOUCES_AWAY_FROM_BASE_TO_TRAIN_WORKERS;
+        int smallestDist = Integer.MAX_VALUE;
         int n_ressources = 0;
 
         for (Unit u2: pgs.getUnits()) {
             if (u2.getType().isResource) {
                 int dist = (Math.abs(u.getX()-u2.getX()) + Math.abs(u.getY()-u2.getY()));
-                if (dist <= maxDistFromBase)
-                    ++n_ressources;
+                if (dist < smallestDist){
+                    smallestDist = dist;
+                }
+                ++n_ressources;
             }
         }
-
-        return Math.max(1, n_ressources);
+        return new Pair<>(n_ressources, smallestDist);
+//        return Math.max(1, n_ressources);
     }
 
-    public void baseBehavior(Unit u, Player p, PhysicalGameState pgs, int nressources, int nworkers) {
-        if (nworkers < nressources && p.getResources() >= workerType.cost) {
+    public void baseBehavior(Unit u, Player p, PhysicalGameState pgs, Pair<Integer, Integer> r_sD, int nworkers) {
+        // TODO: use more workers if harvesting is with a long distance and less when it is with small distance
+        int nressources = r_sD.m_a;
+        int smallestDist = r_sD.m_b;
+        if (nworkers < (smallestDist/4) && p.getResources() >= workerType.cost) {
             train(u, workerType);
         }
     }
@@ -310,11 +315,31 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
 
     }
 
+    private Set<Unit> getNeighbouringMeleesOf(Unit u, Player p, PhysicalGameState pgs) {
+        Queue<Unit> openUnits = new ArrayDeque<>();
+        openUnits.add(u);
+        Set<Unit> visitedUnits = new HashSet<>();
+
+        final int squareSize = 5;
+        final int off = squareSize/2;
+
+        while (!openUnits.isEmpty()) {
+            Unit unit = openUnits.poll();
+            visitedUnits.add(unit);
+            for (Unit u2: pgs.getUnitsInRectangle(unit.getX()-off, unit.getY()-off, squareSize,squareSize)) {
+                if (u2 != unit && u2.getPlayer() == p.getID() && !visitedUnits.contains(u2)) {
+                    openUnits.add(u2);
+                }
+            }
+        }
+
+        return visitedUnits;
+    }
+
     public void meleeUnitBehavior(Unit u, Player p, PhysicalGameState pgs) {
-        // TODO: make this better -> units as a list (like workers) -> when one is attacked, all neighbors should form a squad and attack
         Unit closestEnemy = null;
         int closestDistance = 0;
-        int distToMyBase = 0;
+        int distToMyBase = Integer.MAX_VALUE;
         int baseX = pgs.getWidth()/2, baseY = pgs.getHeight()/2;
         for (Unit u2 : pgs.getUnits()) {
             if (u2.getPlayer() >= 0 && u2.getPlayer() != p.getID()) {
@@ -324,22 +349,33 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
                     closestDistance = d;
                 }
             }
-            else if(u2.getPlayer()==p.getID() && u2.getType() == baseType)
+            // distance away from my barracks and bases
+            else if(u2.getPlayer()==p.getID() && !u2.getType().produces.isEmpty())
             {
                 baseX = u2.getX();
                 baseY = u2.getY();
-                distToMyBase = Math.abs(baseX - u.getX()) + Math.abs(baseY - u.getY());
+                int d = Math.abs(baseX - u.getX()) + Math.abs(baseY - u.getY());
+                if (d < distToMyBase)
+                    distToMyBase = d;
             }
         }
         int averageSize = (pgs.getWidth()+pgs.getHeight())/2;
 
-        // TODO: use distance from any building not only the base
+        // TODO: change increasing of front line -> is to unordered when attacked once -> use Map to save which unit is in attack mode
+
         // closestDistance < enemyDistance: attack attacking enemies / distToMyBase < (averageSize*relativeDistanceFromBase): walk towards enemy until you are to far away from base
         float maxDistAway = u.getType()==heavyType ? averageSize*relativeDistanceFromBase+1 : averageSize*relativeDistanceFromBase;
-        if (closestEnemy!=null && (closestDistance < enemyDistance || distToMyBase < maxDistAway)) {
-            attack(u,closestEnemy);
+        // defend against enemy
+        if (closestEnemy!=null && (closestDistance < enemyDistance)) {
+            for (Unit unit: getNeighbouringMeleesOf(u, p, pgs)) {
+                attack(unit, closestEnemy);
+            }
         }
-        // TODO: returning from a battle -> isn't working
+        // go forward
+        else if (closestEnemy!=null && distToMyBase < maxDistAway) {
+            attack(u, closestEnemy);
+        }
+        // TODO: return from battle (look at CRush for example)
         else if (distToMyBase > maxDistAway) {
             move(u, baseX, baseY);
         }
@@ -377,7 +413,6 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
             }
         }
 
-        // TODO: change behaviour of workers to use more workers if harvesting is with a long distance and less when it is with small distance
         // harvest with all the free workers:
         List<Unit> stillFreeWorkers = new LinkedList<>();
         for (Unit u : freeWorkers) {
