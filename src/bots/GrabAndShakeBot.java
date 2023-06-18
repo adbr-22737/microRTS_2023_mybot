@@ -277,6 +277,8 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
                 GrabAndShakeBotSetting setting = new GrabAndShakeBotSetting();
                 setting.parseFromFile(scanner, utt, pgs);
                 botsTerritoriesFromSetting(setting);
+                currentSetting = setting;
+                currentMapFile = entry;
                 return;
             }
         }
@@ -301,6 +303,8 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         // after that the fields of this are set properly
         GrabAndShakeBotSetting setting = new GrabAndShakeBotSetting();
         setting.fromGrabAndShakeBot(this);
+        currentSetting = setting;
+        currentMapFile = newFile;
         // writing the result of analysis to newFile
         try {
             FileWriter writer = new FileWriter(newFile);
@@ -309,10 +313,8 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         } catch (Exception ignored) {
             // delete the file so we know next time, that we need to re-do the analysis
             newFile.delete();
+            currentMapFile = null;
         }
-
-        currentSetting = setting;
-        currentMapFile = newFile;
     }
 
     public PlayerAction getAction(int player, GameState gs) throws Exception {

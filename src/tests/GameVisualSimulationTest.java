@@ -7,6 +7,7 @@ package tests;
  import ai.abstraction.*;
  import ai.core.AI;
  import bots.GrabAndShakeBot;
+ import bots.RealGrabAndShakeBot;
  import gui.PhysicalGameStatePanel;
  import rts.GameState;
  import rts.PhysicalGameState;
@@ -42,9 +43,10 @@ public class GameVisualSimulationTest {
 //        AI ai1 = new LightDefense(utt);
 //        AI ai1 = new RandomBiasedAI();
 //        AI ai1 = new MonteCarlo(utt);
-        AI ai1 = new LightRush(utt);
+//        AI ai1 = new LightRush(utt);
 //        AI ai1 = new CRush_V2(utt);
-        AI ai2 = new GrabAndShakeBot(utt);
+        AI ai1 = new GrabAndShakeBot(utt);
+        AI ai2 = new RealGrabAndShakeBot(utt);
 
         ai1.preGameAnalysis(gs, 1000);
         ai2.preGameAnalysis(gs, 1000);

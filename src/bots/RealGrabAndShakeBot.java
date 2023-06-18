@@ -253,7 +253,7 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
                 if (u.getPlayer() == player) {
                     ++ntroups;
                     if (gs.getActionAssignment(u) == null)
-                        meleeUnitBehavior(u, p, pgs);
+                        meleeUnitBehavior(u, p, gs);
                 } else {
                     ++enemyTroups;
                 }
@@ -274,7 +274,7 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
                 workers.add(u);
             }
         }
-        workersBehavior(workers, p, pgs, nworkers, nbases, nbarracks);
+        workersBehavior(workers, p, gs, nworkers, nbases, nbarracks);
 
         // This method simply takes all the unit actions executed so far, and packages them into a PlayerAction
         return translateActions(player, gs);
@@ -340,27 +340,39 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
         return visitedUnits;
     }
 
-    public void meleeUnitBehavior(Unit u, Player p, PhysicalGameState pgs) {
+    public void meleeUnitBehavior(Unit u, Player p, GameState gs) {
+        PhysicalGameState pgs = gs.getPhysicalGameState();
         Unit closestEnemy = null;
         int closestDistance = 0;
         int distToMyBase = Integer.MAX_VALUE;
+        int d = Integer.MAX_VALUE;
         int baseX = pgs.getWidth()/2, baseY = pgs.getHeight()/2;
         for (Unit u2 : pgs.getUnits()) {
             if (u2.getPlayer() >= 0 && u2.getPlayer() != p.getID()) {
-                int d = Math.abs(u2.getX() - u.getX()) + Math.abs(u2.getY() - u.getY());
+                d = Math.abs(u2.getX() - u.getX()) + Math.abs(u2.getY() - u.getY());
                 if (closestEnemy == null || d < closestDistance) {
-                    closestEnemy = u2;
-                    closestDistance = d;
+                    // to check if the enemy is reachable
+                    if (pf.pathToPositionInRangeExists(u, u2.getX() + u2.getY() * pgs.getWidth(), u.getAttackRange(), gs, null)) {
+                        closestEnemy = u2;
+                        closestDistance = d;
+                    }
                 }
             }
             // distance away from my barracks and bases
             else if(u2.getPlayer()==p.getID() && !u2.getType().produces.isEmpty())
             {
-                baseX = u2.getX();
-                baseY = u2.getY();
-                int d = Math.abs(baseX - u.getX()) + Math.abs(baseY - u.getY());
-                if (d < distToMyBase)
-                    distToMyBase = d;
+                if (distToMyBase == Integer.MAX_VALUE) {
+                    baseX = u2.getX();
+                    baseY = u2.getY();
+                    distToMyBase = Math.abs(baseX - u.getX()) + Math.abs(baseY - u.getY());
+                } else {
+                    d = Math.abs(u2.getX() - u.getX()) + Math.abs(u2.getY() - u.getY());
+                    if (d < distToMyBase) {
+                        distToMyBase = d;
+                        baseX = u2.getX();
+                        baseY = u2.getY();
+                    }
+                }
             }
         }
         int averageSize = (pgs.getWidth()+pgs.getHeight())/2;
@@ -382,20 +394,22 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
         if (closestEnemy != null && (distToMyBase < maxDistAway || closestDistance < enemyDistance)) {
             attack(u, closestEnemy);
         }
-        // TODO: return from battle (look at CRush for example)
+        /*// TODO: return from battle (look at CRush for example)
         else if (distToMyBase > maxDistAway) {
             move(u, baseX, baseY);
-        }
+        }*/
         else
         {
             attack(u, null);
         }
     }
 
-    public void workersBehavior(List<Unit> workers, Player p, PhysicalGameState pgs, int nworkers, int nbases, int nbarracks) {
+    public void workersBehavior(List<Unit> workers, Player p, GameState gs, int nworkers, int nbases, int nbarracks) {
         if (workers.isEmpty()) {
             return;
         }
+
+        PhysicalGameState pgs = gs.getPhysicalGameState();
 
         int resourcesUsed = 0;
         List<Unit> freeWorkers = new LinkedList<>(workers);
@@ -473,7 +487,7 @@ public class RealGrabAndShakeBot extends AbstractionLayerAI {
             if (workerStillFree) stillFreeWorkers.add(u);
         }
 
-        for(Unit u:stillFreeWorkers) meleeUnitBehavior(u, p, pgs);
+        for(Unit u:stillFreeWorkers) meleeUnitBehavior(u, p, gs);
     }
 
 
