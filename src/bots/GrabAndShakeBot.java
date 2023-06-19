@@ -52,6 +52,8 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         for (AIWithComputationBudget bot: bots) {
             bot.reset();
         }
+        bots.clear();
+        territories.clear();
         currentSetting = null;
         currentMapFile = null;
         myPlayerIdx = -1;
@@ -63,6 +65,8 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         for (AIWithComputationBudget bot: bots) {
             bot.reset(a_utt);
         }
+        bots.clear();
+        territories.clear();
         currentSetting = null;
         currentMapFile = null;
         myPlayerIdx = -1;
@@ -136,7 +140,7 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
             queue.add(new Pair<>(u.getX(), u.getY()-1));
             queue.add(new Pair<>(u.getX(), u.getY()+1));
 
-            int smallestX = Integer.MAX_VALUE, smallestY = Integer.MAX_VALUE, biggestX = Integer.MIN_VALUE, biggestY = Integer.MIN_VALUE;
+            int smallestX = u.getX(), smallestY = u.getY(), biggestX = u.getX(), biggestY = u.getY();
 
             while (!queue.isEmpty()) {
                 Pair<Integer, Integer> pos = queue.poll();
@@ -277,7 +281,17 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
                 GrabAndShakeBotSetting setting = new GrabAndShakeBotSetting();
                 setting.parseFromFile(scanner, utt, pgs);
                 botsTerritoriesFromSetting(setting);
-                currentSetting = setting;
+                // to be save, that it is not empty
+                if (bots.isEmpty()) {
+                    bots.add(new RealGrabAndShakeBot(utt));
+                    territories.clear();
+                    territories.add(new Rectangle(0,0,pgs.getWidth(),pgs.getHeight()));
+                    if (currentSetting == null)
+                        currentSetting = new GrabAndShakeBotSetting();
+                    currentSetting.fromGrabAndShakeBot(this);
+                } else {
+                    currentSetting = setting;
+                }
                 currentMapFile = entry;
                 return;
             }
@@ -286,7 +300,13 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         long used = System.currentTimeMillis() - startTime;
         if (used >= milliseconds) {
             // set a bot and return
-            this.bots.add(new RealGrabAndShakeBot(utt));
+            bots.add(new RealGrabAndShakeBot(utt));
+            territories.clear();
+            territories.add(new Rectangle(0,0,pgs.getWidth(),pgs.getHeight()));
+            if (currentSetting == null)
+                currentSetting = new GrabAndShakeBotSetting();
+            currentSetting.fromGrabAndShakeBot(this);
+            currentMapFile = null;
             return;
         }
 
@@ -296,10 +316,24 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
         } catch (Exception ignored) {
             System.out.println("GrabAndShakeBot: Exception occured, when creating a new file.");
             preGameAnalysis(gs, System.currentTimeMillis()-startTime);
+            if (bots.isEmpty()) {
+                bots.add(new RealGrabAndShakeBot(utt));
+                territories.clear();
+                territories.add(new Rectangle(0,0,pgs.getWidth(),pgs.getHeight()));
+            }
+            if (currentSetting == null)
+                currentSetting = new GrabAndShakeBotSetting();
+            currentSetting.fromGrabAndShakeBot(this);
+            currentMapFile = null;
             return;
         }
         // analyses the pgs
         preGameAnalysis(gs, System.currentTimeMillis()-startTime);
+        if (bots.isEmpty()) {
+            bots.add(new RealGrabAndShakeBot(utt));
+            territories.clear();
+            territories.add(new Rectangle(0,0,pgs.getWidth(),pgs.getHeight()));
+        }
         // after that the fields of this are set properly
         GrabAndShakeBotSetting setting = new GrabAndShakeBotSetting();
         setting.fromGrabAndShakeBot(this);
@@ -324,6 +358,16 @@ public class GrabAndShakeBot extends AbstractionLayerAI {
 
         // TODO: multi thread this if num_bots > 1
         int size = bots.size();
+        // shouldn't happen...
+        if (bots.isEmpty()) {
+            bots.add(new RealGrabAndShakeBot(utt));
+            territories.clear();
+            territories.add(new Rectangle(0,0,gs.getPhysicalGameState().getWidth(),gs.getPhysicalGameState().getHeight()));
+            if (currentSetting == null)
+                currentSetting = new GrabAndShakeBotSetting();
+            currentSetting.fromGrabAndShakeBot(this);
+        }
+
         PhysicalGameState[] pgss = new PhysicalGameState[size];
         GameState[] gss = new GameState[size];
 
